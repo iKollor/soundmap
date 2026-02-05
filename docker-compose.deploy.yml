@@ -38,7 +38,7 @@ services:
   # Object Storage (S3)
   # ==========================================
   garage:
-    image: dxflrs/garage:v1.0.1
+    image: dxflrs/garage:v2.2.0
     container_name: soundmap-garage
     restart: unless-stopped
     environment:
