@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.turbo/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Docker volumes (local data)
+docker/postgres/data/
+docker/minio/data/
+docker/redis/data/
+docker/garage/data/
+docker/garage/meta/
+docker/garage/rpc_secret
+docker/garage/admin_token
+
+
+# Drizzle
+drizzle/meta/
+
+# Misc
+*.tsbuildinfo
+.eslintcache
