@@ -1,17 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Color, Scene, Fog, PerspectiveCamera, Vector3 } from "three";
+import { Color, Scene, Fog, PerspectiveCamera, Vector3, Group } from "three";
 import ThreeGlobe from "three-globe";
 import { useThree, Canvas, extend, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-
-declare module "@react-three/fiber" {
-  interface ThreeElements {
-    threeGlobe: ThreeElements["mesh"] & {
-      new(): ThreeGlobe;
-    };
-  }
-}
 
 extend({ ThreeGlobe: ThreeGlobe });
 
@@ -102,7 +94,7 @@ export function Globe({ globeConfig, data }: WorldProps) {
         globeConfig.onGlobeReady();
       }
     }
-  }, [landData]);
+  }, [landData, globeConfig]);
 
   // Build material when globe is initialized or when relevant props change
   useEffect(() => {
@@ -208,6 +200,7 @@ export function Globe({ globeConfig, data }: WorldProps) {
   }, [
     isInitialized,
     data,
+    landData,
     defaultProps.pointSize,
     defaultProps.showAtmosphere,
     defaultProps.atmosphereColor,
@@ -289,7 +282,7 @@ export function WebGLRendererConfig() {
     gl.setPixelRatio(window.devicePixelRatio);
     gl.setSize(size.width, size.height);
     gl.setClearColor(0xffaaff, 0);
-  }, []);
+  }, [gl, size.width, size.height]);
 
   return null;
 }

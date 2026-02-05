@@ -39,13 +39,10 @@ export default function DisplayMap({ lat, lng, zoom = 14 }: DisplayMapProps) {
             map.current?.remove();
             map.current = null;
         };
-    }, []); // Run once on mount
+    }, [lat, lng, zoom, resolvedTheme]);
 
-    // Handle theme changes
-    useEffect(() => {
-        if (!map.current) return;
-        map.current.setStyle(resolvedTheme === 'dark' ? '/maps/dark.json' : '/maps/light.json');
-    }, [resolvedTheme]);
+    // Note: The above effect intentionally recreates the map when location/theme changes
+    // to ensure proper rendering and marker placement
 
     return (
         <div className="relative w-full h-full rounded-xl overflow-hidden border border-white/10 shadow-xl">

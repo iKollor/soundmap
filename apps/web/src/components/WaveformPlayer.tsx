@@ -58,7 +58,6 @@ export default function WaveformPlayer({ audioUrl, onError }: WaveformPlayerProp
                 if (isDestroyed) return;
                 setIsReady(true);
                 setDuration(wavesurfer!.getDuration());
-                wavesurfer!.setVolume(volume);
             });
 
             wavesurfer.on('audioprocess', () => {

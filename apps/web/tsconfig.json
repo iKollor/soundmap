@@ -18,11 +18,11 @@
             "@soundmap/shared": [
                 "../../packages/shared/src/index.ts"
             ]
-        },
-        "baseUrl": "."
+        }
     },
     "include": [
         "next-env.d.ts",
+        "src/types/**/*.d.ts",
         "**/*.ts",
         "**/*.tsx",
         ".next/types/**/*.ts"

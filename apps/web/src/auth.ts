@@ -1,9 +1,8 @@
-import NextAuth from 'next-auth';
+import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Keycloak from 'next-auth/providers/keycloak';
 import Credentials from 'next-auth/providers/credentials';
-import type { Session, User } from 'next-auth';
-import type { JWT } from 'next-auth/jwt';
 import { syncUserFromKeycloak } from '@soundmap/database';
+import { authConfig } from './auth.config';
 
 /**
  * NextAuth.js v5 configuration for Keycloak SSO
@@ -11,7 +10,7 @@ import { syncUserFromKeycloak } from '@soundmap/database';
  * https://authjs.dev/getting-started/typescript
  */
 
-// Extend the built-in session/jwt types
+// Extend the built-in session/jwt types - kept for global type augmentation
 declare module 'next-auth' {
     interface Session {
         user: {
@@ -27,18 +26,9 @@ declare module 'next-auth' {
     }
 }
 
-declare module 'next-auth/jwt' {
-    interface JWT {
-        keycloakId?: string;
-        accessToken?: string;
-        refreshToken?: string;
-        expiresAt?: number;
-        roles?: string[];
-    }
-}
-
 // NextAuth configuration
-const authConfig = {
+export const config: NextAuthConfig = {
+    ...authConfig,
     providers: [
         Keycloak({
             clientId: process.env.KEYCLOAK_CLIENT_ID ?? '',
@@ -116,16 +106,17 @@ const authConfig = {
         })
     ],
     callbacks: {
-        async signIn({ user, account, profile }: any) {
+        ...authConfig.callbacks,
+        async signIn({ account, profile }) {
             // Helper for Social/Keycloak Login (Redirect flow)
             if (account?.provider === 'keycloak' && profile) {
                 try {
                     await syncUserFromKeycloak({
-                        sub: profile.sub,
-                        name: profile.name,
-                        email: profile.email,
-                        picture: profile.picture,
-                        preferred_username: profile.preferred_username,
+                        sub: profile.sub ?? '',
+                        name: profile.name ?? undefined,
+                        email: profile.email ?? undefined,
+                        picture: profile.picture ?? undefined,
+                        preferred_username: profile.preferred_username ?? undefined,
                     });
                 } catch (e) {
                     console.error('Sync failed', e);
@@ -133,47 +124,14 @@ const authConfig = {
             }
             return true;
         },
-        jwt({ token, user, account, profile }: any) {
-            // Initial sign in from Credentials Provider
-            if (user) {
-                token.keycloakId = user.id;
-                token.accessToken = user.accessToken;
-                token.refreshToken = user.refreshToken;
-                token.expiresAt = user.expiresAt;
-                token.roles = user.roles;
-            }
-            // Initial sign in from Keycloak Provider
-            else if (account && profile) {
-                token.keycloakId = profile.sub;
-                token.accessToken = account.access_token;
-                token.refreshToken = account.refresh_token;
-                token.expiresAt = account.expires_at ? account.expires_at * 1000 : Date.now() + 300000;
-                token.roles = profile.realm_access?.roles || [];
-            }
-            return token;
-        },
-        session({ session, token }: { session: Session; token: JWT }) {
-            if (session.user) {
-                session.user.id = token.keycloakId ?? '';
-                session.user.roles = token.roles ?? [];
-            }
-            return session;
-        },
     },
-    pages: {
-        signIn: '/auth/signin',
-        error: '/auth/error',
-    },
-    session: {
-        strategy: 'jwt' as const,
-    },
-    trustHost: true,
 };
 
 // Export the NextAuth instance with explicit typing
-const nextAuth = NextAuth(authConfig);
+const nextAuth = NextAuth(config);
 
 export const handlers: typeof nextAuth.handlers = nextAuth.handlers;
 export const auth: typeof nextAuth.auth = nextAuth.auth;
 export const signIn: typeof nextAuth.signIn = nextAuth.signIn;
 export const signOut: typeof nextAuth.signOut = nextAuth.signOut;
+

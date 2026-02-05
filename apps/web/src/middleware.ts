@@ -1,48 +1,23 @@
-import { auth } from '@/auth';
-import { NextResponse } from 'next/server';
-
-export default auth((req) => {
-    const isLoggedIn = !!req.auth;
-    const { pathname } = req.nextUrl;
-
-    // Protected routes that require authentication
-    const protectedPatterns = [
-        '/subir',
-        '/perfil',
-        '/mis-sonidos',
-        '/mixer/guardar',
-    ];
-
-    const isProtectedRoute = protectedPatterns.some(pattern =>
-        pathname.startsWith(pattern)
-    );
-
-    // Redirect unauthenticated users to sign in
-    if (isProtectedRoute && !isLoggedIn) {
-        const signInUrl = new URL('/auth/signin', req.nextUrl.origin);
-        signInUrl.searchParams.set('callbackUrl', pathname);
-        return NextResponse.redirect(signInUrl);
-    }
-
-    // Admin-only routes
-    const adminPatterns = ['/admin'];
-    const isAdminRoute = adminPatterns.some(pattern =>
-        pathname.startsWith(pattern)
-    );
-
-    if (isAdminRoute) {
-        const roles = req.auth?.user?.roles || [];
-        if (!roles.includes('admin')) {
-            return NextResponse.redirect(new URL('/403', req.nextUrl.origin));
-        }
-    }
-
-    return NextResponse.next();
-});
+/**
+ * Next.js Middleware for Auth.js
+ * 
+ * This is the official pattern recommended by Auth.js documentation.
+ * All authorization logic is handled by the `authorized` callback in auth.config.ts
+ * 
+ * @see https://authjs.dev/getting-started/session-management/protecting#nextjs-middleware
+ */
+export { auth as middleware } from './auth';
 
 export const config = {
     matcher: [
-        // Match all routes except static files and api
+        /*
+         * Match all request paths except:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * - public folder files (maps, etc.)
+         * - api/auth routes (handled by Auth.js)
+         */
         '/((?!_next/static|_next/image|favicon.ico|maps|api/auth).*)',
     ],
 };

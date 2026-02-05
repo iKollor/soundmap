@@ -82,13 +82,10 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
             map.current?.remove();
             map.current = null;
         };
-    }, []); // Run once on mount
+    }, [flyTo, setMarkerAt, initialLocation, resolvedTheme]);
 
-    // Update style when theme changes
-    useEffect(() => {
-        if (!map.current) return;
-        map.current.setStyle(resolvedTheme === 'dark' ? '/maps/dark.json' : '/maps/light.json');
-    }, [resolvedTheme]);
+    // Note: The above effect intentionally recreates the map when dependencies change
+    // to ensure proper initialization with the correct theme and location
 
     const handleGeolocation = () => {
         if (!navigator.geolocation) {
