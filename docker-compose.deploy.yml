@@ -104,6 +104,9 @@ services:
             S3_BUCKET_SOUNDS: ${S3_BUCKET_SOUNDS:-sounds}
             S3_BUCKET_WAVEFORMS: ${S3_BUCKET_WAVEFORMS:-waveforms}
             S3_FORCE_PATH_STYLE: "true"
+            # Internal webhook URL for worker callbacks
+            INTERNAL_WEBHOOK_URL: http://web:3000
+            WORKER_SECRET: ${NEXTAUTH_SECRET}
             # App Config
             NEXT_PUBLIC_APP_URL: ${COOLIFY_URL}
             NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL}
