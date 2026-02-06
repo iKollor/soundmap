@@ -1,4 +1,5 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 import Keycloak from 'next-auth/providers/keycloak';
 import Credentials from 'next-auth/providers/credentials';
 import { syncUserFromKeycloak } from '@soundmap/database';
@@ -10,7 +11,7 @@ import { authConfig } from './auth.config';
  * https://authjs.dev/getting-started/typescript
  */
 
-// Extend the built-in session/jwt types - kept for global type augmentation
+// Extend the built-in session/jwt types
 declare module 'next-auth' {
     interface Session {
         user: {
@@ -20,9 +21,61 @@ declare module 'next-auth' {
             image?: string | null;
             roles: string[];
         };
+        error?: 'RefreshAccessTokenError';
     }
     interface User {
+        id: string;
         roles?: string[];
+        accessToken?: string;
+        refreshToken?: string;
+        expiresAt?: number;
+    }
+}
+
+declare module 'next-auth/jwt' {
+    interface JWT {
+        id: string;
+        roles: string[];
+        accessToken?: string;
+        refreshToken?: string;
+        expiresAt?: number;
+        error?: 'RefreshAccessTokenError';
+    }
+}
+
+// Helper function to refresh access token
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+    try {
+        const params = new URLSearchParams();
+        params.append('client_id', process.env.KEYCLOAK_CLIENT_ID!);
+        params.append('client_secret', process.env.KEYCLOAK_CLIENT_SECRET!);
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', token.refreshToken!);
+
+        const tokenUrl = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
+        const response = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('Failed to refresh token:', data);
+            return { ...token, error: 'RefreshAccessTokenError' };
+        }
+
+        return {
+            ...token,
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token ?? token.refreshToken,
+            expiresAt: Date.now() + (data.expires_in * 1000),
+            error: undefined,
+        };
+    } catch (error) {
+        console.error('Error refreshing access token:', error);
+        return { ...token, error: 'RefreshAccessTokenError' };
     }
 }
 
@@ -123,6 +176,47 @@ export const config: NextAuthConfig = {
                 }
             }
             return true;
+        },
+        async jwt({ token, user, account }) {
+            // Initial sign in - persist user data to token
+            if (user) {
+                token.id = user.id;
+                token.roles = user.roles || [];
+                token.accessToken = user.accessToken;
+                token.refreshToken = user.refreshToken;
+                token.expiresAt = user.expiresAt;
+            }
+
+            // Handle OAuth provider (Keycloak redirect flow)
+            if (account?.provider === 'keycloak') {
+                token.id = account.providerAccountId;
+                token.accessToken = account.access_token;
+                token.refreshToken = account.refresh_token;
+                token.expiresAt = account.expires_at ? account.expires_at * 1000 : undefined;
+                token.roles = [];
+            }
+
+            // Check if token needs refresh (5 minutes before expiry)
+            if (token.expiresAt && token.refreshToken) {
+                const shouldRefresh = Date.now() > (token.expiresAt - 5 * 60 * 1000);
+                if (shouldRefresh) {
+                    console.log('Refreshing access token...');
+                    return await refreshAccessToken(token);
+                }
+            }
+
+            return token;
+        },
+        async session({ session, token }) {
+            // Pass token data to session
+            if (token) {
+                session.user.id = token.id;
+                session.user.roles = token.roles || [];
+                if (token.error) {
+                    session.error = token.error;
+                }
+            }
+            return session;
         },
     },
 };
