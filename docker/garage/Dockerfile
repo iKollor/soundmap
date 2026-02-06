@@ -1,7 +1,13 @@
-FROM dxflrs/garage:v1.3.1
+# Multi-stage: copy garage binary to alpine
+FROM dxflrs/garage:v1.3.1 AS garage-bin
+
+FROM alpine:3.21
 
 # Install bash and curl for init script
 RUN apk add --no-cache bash curl
+
+# Copy garage binary from official image
+COPY --from=garage-bin /garage /garage
 
 # Copy configuration file
 COPY garage.prod.toml /etc/garage.toml
