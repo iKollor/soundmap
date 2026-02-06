@@ -10,7 +10,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Copy root configuration files for pnpm workspace
-COPY pnpm-lock.yaml package.json turbo.json pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml package.json turbo.json pnpm-workspace.yaml .npmrc ./
 COPY tsconfig.json ./tsconfig.json
 
 # Copy packages needed for the worker

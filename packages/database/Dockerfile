@@ -8,7 +8,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Copy root package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json .npmrc ./
 
 # Copy packages
 COPY packages/database ./packages/database

@@ -53,6 +53,7 @@ WORKDIR /app
 # Copy lockfile and package.json files
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/.npmrc ./.npmrc
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
