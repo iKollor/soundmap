@@ -38,7 +38,9 @@ services:
     # Object Storage (S3)
     # ==========================================
     garage:
-        image: dxflrs/garage:v1.3.1
+        build:
+            context: ./docker/garage
+            dockerfile: Dockerfile
         container_name: soundmap-garage
         restart: unless-stopped
         environment:
@@ -49,10 +51,8 @@ services:
         volumes:
             - garage_data:/var/lib/garage/data
             - garage_meta:/var/lib/garage/meta
-            - ./docker/garage/garage.prod.toml:/etc/garage.toml:ro
-        command: ["/garage", "server"]
         healthcheck:
-            test: ["CMD-SHELL", "curl -f http://localhost:3903/health || exit 1"]
+            test: ["CMD-SHELL", "curl -f http://localhost:3902/health || exit 1"]
             interval: 10s
             timeout: 5s
             retries: 5
