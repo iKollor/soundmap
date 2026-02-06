@@ -59,6 +59,21 @@ services:
             start_period: 30s
 
     # ==========================================
+    # Database Migrations
+    # ==========================================
+    migrate:
+        build:
+            context: .
+            dockerfile: packages/database/Dockerfile
+        container_name: soundmap-migrate
+        environment:
+            DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+        depends_on:
+            postgres:
+                condition: service_healthy
+        restart: "no"
+
+    # ==========================================
     # Application Services
     # ==========================================
     web:
@@ -96,6 +111,8 @@ services:
                 condition: service_healthy
             garage:
                 condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
 
     worker:
         build:
@@ -124,9 +141,11 @@ services:
                 condition: service_healthy
             garage:
                 condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
 
 volumes:
     postgres_data:
+    redis_data:
     garage_data:
     garage_meta:
-    redis_data:
