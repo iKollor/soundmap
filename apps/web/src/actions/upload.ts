@@ -12,12 +12,29 @@ import { syncUserFromKeycloak } from '@soundmap/database';
 // Constants
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-// Initialize Queue
-const transcodeQueue = new Queue<TranscodeJobData>('transcode', {
-    connection: {
+// Parse Redis URL or use individual host/port
+function getRedisConfig() {
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl) {
+        try {
+            const url = new URL(redisUrl);
+            return {
+                host: url.hostname,
+                port: parseInt(url.port) || 6379,
+            };
+        } catch {
+            // If URL parsing fails, fall back to defaults
+        }
+    }
+    return {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
-    }
+    };
+}
+
+// Initialize Queue
+const transcodeQueue = new Queue<TranscodeJobData>('transcode', {
+    connection: getRedisConfig()
 });
 
 const uploadSchema = z.object({
@@ -132,7 +149,14 @@ export async function uploadSound(formData: FormData) {
 
         // 3. Trigger BullMQ Worker
         try {
-            const webhookUrl = `${process.env.INTERNAL_WEBHOOK_URL || process.env.NEXTAUTH_URL}/api/webhooks/audio-complete`;
+            // In Docker/production, use internal network URL (web:3000)
+            // In development, use localhost
+            const getWebhookBaseUrl = () => {
+                if (process.env.INTERNAL_WEBHOOK_URL) return process.env.INTERNAL_WEBHOOK_URL;
+                if (process.env.NODE_ENV === 'production') return 'http://web:3000';
+                return process.env.NEXTAUTH_URL || 'http://localhost:3000';
+            };
+            const webhookUrl = `${getWebhookBaseUrl()}/api/webhooks/audio-complete`;
             console.log('🔔 Webhook URL:', webhookUrl);
 
             await transcodeQueue.add('process-audio', {
@@ -140,7 +164,7 @@ export async function uploadSound(formData: FormData) {
                 originalUrl: fileUrl,
                 s3Key: key,
                 webhookUrl,
-                secret: process.env.WORKER_SECRET,
+                secret: process.env.WORKER_SECRET || process.env.NEXTAUTH_SECRET,
             });
             console.log('Job added to transcode queue');
         } catch (queueError) {

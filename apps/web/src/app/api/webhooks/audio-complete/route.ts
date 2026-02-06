@@ -37,7 +37,8 @@ export async function POST(req: Request) {
         console.log(`🔊 Processing sound ${soundId}, status: ${status}`);
 
         // Verify secret to prevent unauthorized updates
-        if (secret !== process.env.WORKER_SECRET) {
+        const expectedSecret = process.env.WORKER_SECRET || process.env.NEXTAUTH_SECRET;
+        if (secret !== expectedSecret) {
             console.error('❌ Unauthorized - secret mismatch');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
