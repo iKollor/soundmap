@@ -14,10 +14,17 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<maplibregl.Map | null>(null);
     const marker = useRef<maplibregl.Marker | null>(null);
+    const onLocationSelectRef = useRef(onLocationSelect);
     const { resolvedTheme } = useTheme();
     const [isLocating, setIsLocating] = useState(false);
+    const [mapReady, setMapReady] = useState(false);
 
-    // Function to set marker at position
+    // Keep callback ref updated
+    useEffect(() => {
+        onLocationSelectRef.current = onLocationSelect;
+    }, [onLocationSelect]);
+
+    // Function to set marker at position (stable - doesn't depend on props)
     const setMarkerAt = useCallback((lat: number, lng: number) => {
         if (!map.current) return;
 
@@ -29,10 +36,10 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
             marker.current.setLngLat([lng, lat]);
         }
 
-        onLocationSelect({ lat, lng });
-    }, [onLocationSelect]);
+        onLocationSelectRef.current({ lat, lng });
+    }, []);
 
-    // Function to fly to location
+    // Function to fly to location (stable)
     const flyTo = useCallback((lat: number, lng: number, zoom = 15) => {
         if (!map.current) return;
         map.current.flyTo({
@@ -42,7 +49,7 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
         });
     }, []);
 
-    // Expose flyTo and setMarkerAt via custom event
+    // Handle custom flyto events from AddressSearch
     useEffect(() => {
         const handleFlyTo = (e: CustomEvent<{ lat: number; lng: number }>) => {
             const { lat, lng } = e.detail;
@@ -54,15 +61,22 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
         return () => window.removeEventListener('minimap:flyto', handleFlyTo as EventListener);
     }, [flyTo, setMarkerAt]);
 
+    // Initialize map only once
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
 
+        const initialStyle = resolvedTheme === 'dark' ? '/maps/dark.json' : '/maps/light.json';
+
         map.current = new maplibregl.Map({
             container: mapContainer.current,
-            style: resolvedTheme === 'dark' ? '/maps/dark.json' : '/maps/light.json',
+            style: initialStyle,
             center: [-79.8891, -2.1894], // Guayaquil
             zoom: 11,
             interactive: true
+        });
+
+        map.current.on('load', () => {
+            setMapReady(true);
         });
 
         map.current.on('click', (e) => {
@@ -70,22 +84,27 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
             setMarkerAt(lat, lng);
         });
 
-        // Set initial location if provided
-        if (initialLocation) {
-            setTimeout(() => {
-                setMarkerAt(initialLocation.lat, initialLocation.lng);
-                flyTo(initialLocation.lat, initialLocation.lng, 14);
-            }, 500);
-        }
-
         return () => {
             map.current?.remove();
             map.current = null;
+            setMapReady(false);
         };
-    }, [flyTo, setMarkerAt, initialLocation, resolvedTheme]);
+    }, [setMarkerAt]);
 
-    // Note: The above effect intentionally recreates the map when dependencies change
-    // to ensure proper initialization with the correct theme and location
+    // Update map style when theme changes (without recreating the map)
+    useEffect(() => {
+        if (!map.current || !mapReady) return;
+        const newStyle = resolvedTheme === 'dark' ? '/maps/dark.json' : '/maps/light.json';
+        map.current.setStyle(newStyle);
+    }, [resolvedTheme, mapReady]);
+
+    // Handle initial location after map is ready
+    useEffect(() => {
+        if (!map.current || !mapReady || !initialLocation) return;
+
+        setMarkerAt(initialLocation.lat, initialLocation.lng);
+        flyTo(initialLocation.lat, initialLocation.lng, 14);
+    }, [initialLocation, mapReady, setMarkerAt, flyTo]);
 
     const handleGeolocation = () => {
         if (!navigator.geolocation) {
