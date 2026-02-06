@@ -19,5 +19,5 @@ RUN pnpm install --frozen-lockfile --filter=@soundmap/database...
 
 WORKDIR /app/packages/database
 
-# Run migrations (push schema directly to database)
-CMD ["pnpm", "db:push"]
+# Run migrations (push schema directly to database, --force skips confirmation)
+CMD ["pnpm", "db:push", "--force"]
