@@ -1,22 +1,28 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '@/components/ThemeProvider';
+
+// Constants
+const DEFAULT_CENTER: [number, number] = [-79.8891, -2.1894]; // Guayaquil
+const DEFAULT_ZOOM = 11;
+const MARKER_COLOR = '#8b5cf6';
 
 interface MiniMapProps {
     onLocationSelect: (loc: { lat: number; lng: number }) => void;
     initialLocation?: { lat: number; lng: number };
 }
 
-export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapProps) {
+function MiniMap({ onLocationSelect, initialLocation }: MiniMapProps) {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<maplibregl.Map | null>(null);
     const marker = useRef<maplibregl.Marker | null>(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const { resolvedTheme } = useTheme();
     const initialThemeRef = useRef(resolvedTheme); // Capture initial theme
+    const lastProcessedLocation = useRef<{ lat: number; lng: number } | null>(null);
     const [isLocating, setIsLocating] = useState(false);
     const [mapReady, setMapReady] = useState(false);
 
@@ -30,13 +36,15 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
         if (!map.current) return;
 
         if (!marker.current) {
-            marker.current = new maplibregl.Marker({ color: '#8b5cf6' })
+            marker.current = new maplibregl.Marker({ color: MARKER_COLOR })
                 .setLngLat([lng, lat])
                 .addTo(map.current);
         } else {
             marker.current.setLngLat([lng, lat]);
         }
 
+        // Mark this location as processed to prevent loop
+        lastProcessedLocation.current = { lat, lng };
         onLocationSelectRef.current({ lat, lng });
     }, []);
 
@@ -72,8 +80,8 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
         map.current = new maplibregl.Map({
             container: mapContainer.current,
             style: initialStyle,
-            center: [-79.8891, -2.1894], // Guayaquil
-            zoom: 11,
+            center: DEFAULT_CENTER,
+            zoom: DEFAULT_ZOOM,
             interactive: true
         });
 
@@ -87,6 +95,8 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
         });
 
         return () => {
+            marker.current?.remove();
+            marker.current = null;
             map.current?.remove();
             map.current = null;
             setMapReady(false);
@@ -104,11 +114,18 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
     useEffect(() => {
         if (!map.current || !mapReady || !initialLocation) return;
 
+        // Prevent loop: skip if this location was already processed
+        const last = lastProcessedLocation.current;
+        if (last && last.lat === initialLocation.lat && last.lng === initialLocation.lng) {
+            return;
+        }
+
+        lastProcessedLocation.current = initialLocation;
         setMarkerAt(initialLocation.lat, initialLocation.lng);
         flyTo(initialLocation.lat, initialLocation.lng, 14);
     }, [initialLocation, mapReady, setMarkerAt, flyTo]);
 
-    const handleGeolocation = () => {
+    const handleGeolocation = useCallback(() => {
         if (!navigator.geolocation) {
             alert('Tu navegador no soporta geolocalización');
             return;
@@ -137,7 +154,7 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
                 maximumAge: 60000,
             }
         );
-    };
+    }, [setMarkerAt, flyTo]);
 
     return (
         <div className="relative w-full h-full">
@@ -170,3 +187,5 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
         </div>
     );
 }
+
+export default memo(MiniMap);
