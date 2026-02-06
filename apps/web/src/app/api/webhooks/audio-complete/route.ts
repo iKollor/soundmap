@@ -2,6 +2,9 @@ import { db, sounds, soundAssets, eq, and } from '@soundmap/database';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+// Set max duration to 5 minutes for webhook processing
+export const maxDuration = 300;
+
 const callbackSchema = z.object({
     soundId: z.string(),
     status: z.enum(['ready', 'failed']),

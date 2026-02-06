@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { uploadSound } from '@/actions/upload';
 import dynamic from 'next/dynamic';
@@ -272,6 +272,7 @@ export default function UploadForm() {
                             {ENVIRONMENT_OPTIONS.map(opt => (
                                 <div key={opt.value} className="flex-1">
                                     <input
+                                        title={opt.label}
                                         type="radio"
                                         id={opt.value}
                                         name="environment"

@@ -2,6 +2,9 @@ import UploadForm from '@/components/UploadForm';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 
+// Allow up to 5 minutes for large file uploads
+export const maxDuration = 300;
+
 export default async function SubirPage() {
     const session = await auth();
     if (!session) redirect('/auth/signin');

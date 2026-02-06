@@ -1,7 +1,7 @@
 'use server';
 
 import { auth } from '@/auth';
-import { createSound } from '@soundmap/database';
+import { createSound, type NewSound } from '@soundmap/database';
 import { uploadFileToS3 } from '@soundmap/shared';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -21,6 +21,9 @@ function getRedisConfig() {
             return {
                 host: url.hostname,
                 port: parseInt(url.port) || 6379,
+                maxRetriesPerRequest: 3,
+                connectTimeout: 10000, // 10 seconds
+                commandTimeout: 5000,  // 5 seconds
             };
         } catch {
             // If URL parsing fails, fall back to defaults
@@ -29,10 +32,13 @@ function getRedisConfig() {
     return {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
+        maxRetriesPerRequest: 3,
+        connectTimeout: 10000,
+        commandTimeout: 5000,
     };
 }
 
-// Initialize Queue
+// Initialize Queue with error handling
 const transcodeQueue = new Queue<TranscodeJobData>('transcode', {
     connection: getRedisConfig()
 });
@@ -118,7 +124,10 @@ export async function uploadSound(formData: FormData) {
         : undefined;
 
     try {
-        // 1. Upload to S3 (Garage)
+        // 1. Upload to S3 (Garage) with timeout
+        console.log(`📤 Starting upload for file: ${file.name} (${file.size} bytes)`);
+        const uploadStartTime = Date.now();
+
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const timestamp = Date.now();
@@ -126,17 +135,26 @@ export async function uploadSound(formData: FormData) {
         const key = `${session.user.id}/${timestamp}-${sanitizedFilename}`;
         const contentType = file.type || 'application/octet-stream';
 
-        const fileUrl = await uploadFileToS3(key, buffer, contentType);
+        let fileUrl: string;
+        try {
+            fileUrl = await uploadFileToS3(key, buffer, contentType);
+            const uploadDuration = Date.now() - uploadStartTime;
+            console.log(`✅ File uploaded successfully in ${uploadDuration}ms: ${key}`);
+        } catch (s3Error) {
+            console.error('❌ S3 upload failed:', s3Error);
+            throw new Error('Error al subir el archivo a almacenamiento. Verifica la conexión con Garage S3.');
+        }
 
         // 2. Create DB Record (Sound) with extended fields
+        console.log(`💾 Creating database record for sound...`);
         const newSound = await createSound({
             title: data.title,
             description: data.description || '',
             userId: syncedUser.id,
             latitude: data.latitude,
             longitude: data.longitude,
-            category: data.category as any,
-            environment: data.environment as any,
+            category: data.category as NewSound['category'],
+            environment: data.environment as NewSound['environment'],
             equipment: data.equipment,
             // weather removed
             tags: tagsArray,
@@ -146,6 +164,7 @@ export async function uploadSound(formData: FormData) {
             status: 'processing',
             license: 'CC-BY',
         });
+        console.log(`✅ Sound record created with ID: ${newSound.id}`);
 
         // 3. Trigger BullMQ Worker
         try {
@@ -159,16 +178,31 @@ export async function uploadSound(formData: FormData) {
             const webhookUrl = `${getWebhookBaseUrl()}/api/webhooks/audio-complete`;
             console.log('🔔 Webhook URL:', webhookUrl);
 
-            await transcodeQueue.add('process-audio', {
+            const jobStartTime = Date.now();
+            const job = await transcodeQueue.add('process-audio', {
                 soundId: newSound.id,
                 originalUrl: fileUrl,
                 s3Key: key,
                 webhookUrl,
                 secret: process.env.WORKER_SECRET || process.env.NEXTAUTH_SECRET,
+            }, {
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 2000,
+                },
+                removeOnComplete: true,
+                removeOnFail: false,
             });
-            console.log('Job added to transcode queue');
-        } catch (queueError) {
-            console.error('Failed to add job to queue:', queueError);
+            const jobDuration = Date.now() - jobStartTime;
+            console.log(`✅ Job ${job.id} added to transcode queue in ${jobDuration}ms`);
+        } catch (queueError: unknown) {
+            console.error('❌ Failed to add job to queue:', queueError);
+            // Don't fail the upload if queue is unavailable
+            // The sound will remain in 'processing' state
+            console.warn('⚠️ Sound uploaded but transcoding queue unavailable. Manual intervention may be required.');
+            // Optionally mark sound as failed immediately
+            // await updateSound(newSound.id, { status: 'failed' });
         }
 
         revalidatePath('/explorar');

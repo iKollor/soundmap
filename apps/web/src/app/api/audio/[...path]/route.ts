@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand, GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
+// Set max duration to 5 minutes for large audio file streaming
+export const maxDuration = 300;
+
 const s3Client = new S3Client({
     endpoint: process.env.S3_ENDPOINT || 'http://localhost:3900',
     region: process.env.S3_REGION || 'garage',
