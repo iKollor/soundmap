@@ -7,6 +7,10 @@ const nextConfig = {
             bodySizeLimit: "50mb", // For audio file uploads
         },
     },
+    env: {
+        NEXT_PUBLIC_KEYCLOAK_ISSUER: process.env.KEYCLOAK_ISSUER,
+        NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: process.env.KEYCLOAK_CLIENT_ID,
+    },
     images: {
         remotePatterns: [
             {

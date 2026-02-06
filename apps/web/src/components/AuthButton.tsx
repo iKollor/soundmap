@@ -1,6 +1,20 @@
 'use client';
 
 import { useSession, signIn, signOut } from 'next-auth/react';
+
+function keycloakSignOut() {
+    const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+    if (issuer) {
+        // Sign out from NextAuth first, then redirect to Keycloak logout
+        const redirectUri = window.location.origin;
+        signOut({ redirect: false }).then(() => {
+            window.location.href = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'web-app'}`;
+        });
+    } else {
+        // Fallback: just NextAuth signOut with explicit redirect
+        signOut({ callbackUrl: '/' });
+    }
+}
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import {
@@ -100,7 +114,7 @@ export function AuthButton({ className = '', variant = 'default' }: AuthButtonPr
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     className="text-red-500 cursor-pointer focus:text-red-500"
-                    onClick={() => signOut()}
+                    onClick={() => keycloakSignOut()}
                 >
                     <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
