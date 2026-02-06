@@ -16,6 +16,7 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
     const marker = useRef<maplibregl.Marker | null>(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const { resolvedTheme } = useTheme();
+    const initialThemeRef = useRef(resolvedTheme); // Capture initial theme
     const [isLocating, setIsLocating] = useState(false);
     const [mapReady, setMapReady] = useState(false);
 
@@ -65,7 +66,8 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
 
-        const initialStyle = resolvedTheme === 'dark' ? '/maps/dark.json' : '/maps/light.json';
+        // Use captured initial theme (ref doesn't cause re-renders)
+        const initialStyle = initialThemeRef.current === 'dark' ? '/maps/dark.json' : '/maps/light.json';
 
         map.current = new maplibregl.Map({
             container: mapContainer.current,
@@ -89,7 +91,7 @@ export default function MiniMap({ onLocationSelect, initialLocation }: MiniMapPr
             map.current = null;
             setMapReady(false);
         };
-    }, [setMarkerAt]);
+    }, [setMarkerAt]); // initialThemeRef is a ref, doesn't need to be a dependency
 
     // Update map style when theme changes (without recreating the map)
     useEffect(() => {
