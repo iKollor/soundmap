@@ -3,17 +3,9 @@
 import { useSession, signIn, signOut } from 'next-auth/react';
 
 function keycloakSignOut() {
-    const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
-    if (issuer) {
-        // Sign out from NextAuth first, then redirect to Keycloak logout
-        const redirectUri = window.location.origin;
-        signOut({ redirect: false }).then(() => {
-            window.location.href = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'web-app'}`;
-        });
-    } else {
-        // Fallback: just NextAuth signOut with explicit redirect
-        signOut({ callbackUrl: '/' });
-    }
+    // signOut with callbackUrl ensures NextAuth redirects to the correct domain
+    // NEXTAUTH_URL is used server-side to determine the base URL
+    signOut({ callbackUrl: '/' });
 }
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";

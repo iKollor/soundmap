@@ -108,11 +108,11 @@ services:
             INTERNAL_WEBHOOK_URL: http://web:3000
             WORKER_SECRET: ${NEXTAUTH_SECRET}
             # App Config
-            NEXT_PUBLIC_APP_URL: ${COOLIFY_URL}
+            NEXT_PUBLIC_APP_URL: ${SERVICE_URL_WEB}
             NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL}
             # Auth
             AUTH_TRUST_HOST: "true"
-            NEXTAUTH_URL: ${COOLIFY_URL}
+            NEXTAUTH_URL: ${SERVICE_URL_WEB}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
             KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
             KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}

@@ -50,6 +50,11 @@ RUN turbo prune @soundmap/web --docker
 FROM base AS installer
 WORKDIR /app
 
+# Re-declare build args needed for next build
+ARG KEYCLOAK_ISSUER
+ARG KEYCLOAK_CLIENT_ID
+ARG NEXT_PUBLIC_MAP_STYLE_URL
+
 # Copy lockfile and package.json files
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml

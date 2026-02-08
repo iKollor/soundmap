@@ -1,15 +1,12 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
     output: "standalone",
     transpilePackages: ["@soundmap/database", "@soundmap/shared"],
     experimental: {
         serverActions: {
-            bodySizeLimit: "50mb", // For audio file uploads
+            bodySizeLimit: "50mb",
         },
-    },
-    env: {
-        NEXT_PUBLIC_KEYCLOAK_ISSUER: process.env.KEYCLOAK_ISSUER,
-        NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: process.env.KEYCLOAK_CLIENT_ID,
     },
     images: {
         remotePatterns: [
@@ -23,4 +20,4 @@ const nextConfig = {
     },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
